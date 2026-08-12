@@ -24,11 +24,6 @@ Parameters:
     Type: String
     Description: Main route table ID for the VPC (used for S3 gateway endpoint). Find it in VPC Console → Route Tables → Main=Yes.
 
-  ScriptBucket:
-    Type: String
-    Description: S3 bucket containing the blog scripts (e.g. aws-bigdata-blog/artifacts/glue6-rtm-variant). Do not include s3:// prefix.
-    Default: aws-bigdata-blog/artifacts/glue6-rtm-variant
-
 # ==============================================================================
 # RESOURCES
 # ==============================================================================
@@ -307,7 +302,7 @@ Resources:
       GlueVersion: '6.0'
       Command:
         Name: glueetl
-        ScriptLocation: !Sub 's3://${ScriptBucket}/create_topics.py'
+        ScriptLocation: !Sub 's3://${DataBucket}/scripts/create_topics.py'
         PythonVersion: '3'
       DefaultArguments:
         '--BOOTSTRAP_SERVERS': !GetAtt MSKBootstrap.BootstrapServers
@@ -333,7 +328,7 @@ Resources:
       GlueVersion: '6.0'
       Command:
         Name: glueetl
-        ScriptLocation: !Sub 's3://${ScriptBucket}/producer.py'
+        ScriptLocation: !Sub 's3://${DataBucket}/scripts/producer.py'
         PythonVersion: '3'
       DefaultArguments:
         '--BOOTSTRAP_SERVERS': !GetAtt MSKBootstrap.BootstrapServers
@@ -359,7 +354,7 @@ Resources:
       GlueVersion: '6.0'
       Command:
         Name: gluestreaming
-        ScriptLocation: !Sub 's3://${ScriptBucket}/rtm_alerts.scala'
+        ScriptLocation: !Sub 's3://${DataBucket}/scripts/rtm_alerts.scala'
       DefaultArguments:
         '--job-language': scala
         '--class': RTMAlerts
@@ -388,7 +383,7 @@ Resources:
       GlueVersion: '6.0'
       Command:
         Name: gluestreaming
-        ScriptLocation: !Sub 's3://${ScriptBucket}/nrt_ingestion.py'
+        ScriptLocation: !Sub 's3://${DataBucket}/scripts/nrt_ingestion.py'
         PythonVersion: '3'
       DefaultArguments:
         '--BOOTSTRAP_SERVERS': !GetAtt MSKBootstrap.BootstrapServers
@@ -423,7 +418,7 @@ Resources:
       GlueVersion: '6.0'
       Command:
         Name: glueetl
-        ScriptLocation: !Sub 's3://${ScriptBucket}/batch_var.py'
+        ScriptLocation: !Sub 's3://${DataBucket}/scripts/batch_var.py'
         PythonVersion: '3'
       DefaultArguments:
         '--DATABASE_NAME': !Sub 'risk_analytics_${AWS::AccountId}'
