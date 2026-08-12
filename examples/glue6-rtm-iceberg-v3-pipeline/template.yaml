@@ -208,6 +208,11 @@ Resources:
                   - kafka:GetBootstrapBrokers
                   - kafka:DescribeCluster
                 Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub 'arn:aws:s3:::glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}/scripts/*'
 
   HelperFunction:
     Type: AWS::Lambda::Function
@@ -256,6 +261,69 @@ Resources:
       ClusterArn: !Ref MSKCluster
 
   # ============================================================
+  # Script Uploader — downloads scripts from GitHub into DataBucket
+  # ============================================================
+  ScriptUploaderFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: DataBucket
+    Properties:
+      FunctionName: !Sub 'glue6-rtm-variant-script-uploader-${AWS::Region}'
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt HelperRole.Arn
+      Timeout: 120
+      MemorySize: 256
+      Code:
+        ZipFile: |
+          import boto3, json
+          from urllib.request import urlopen, Request
+
+          GITHUB_BASE = "https://raw.githubusercontent.com/shoukasg/aws-glue-samples/master/examples/glue6-rtm-iceberg-v3-pipeline/scripts"
+          SCRIPTS = [
+              "create_topics.py",
+              "producer.py",
+              "rtm_alerts.scala",
+              "nrt_ingestion.py",
+              "batch_var.py"
+          ]
+
+          def send_cfn(event, context, status, data={}):
+              body = json.dumps({
+                  "Status": status, "Reason": json.dumps(data),
+                  "PhysicalResourceId": context.log_stream_name,
+                  "StackId": event["StackId"], "RequestId": event["RequestId"],
+                  "LogicalResourceId": event["LogicalResourceId"], "Data": data
+              })
+              req = Request(event["ResponseURL"], data=body.encode(), headers={"Content-Type": ""}, method="PUT")
+              urlopen(req)
+
+          def handler(event, context):
+              bucket = event['ResourceProperties']['Bucket']
+              s3 = boto3.client('s3')
+              try:
+                  if event['RequestType'] == 'Delete':
+                      for script in SCRIPTS:
+                          s3.delete_object(Bucket=bucket, Key=f"scripts/{script}")
+                      send_cfn(event, context, "SUCCESS", {'Message': 'Scripts cleaned up'})
+                      return
+                  for script in SCRIPTS:
+                      url = f"{GITHUB_BASE}/{script}"
+                      content = urlopen(url).read()
+                      s3.put_object(Bucket=bucket, Key=f"scripts/{script}", Body=content)
+                  send_cfn(event, context, "SUCCESS", {'Message': f'Uploaded {len(SCRIPTS)} scripts from GitHub'})
+              except Exception as e:
+                  send_cfn(event, context, "FAILED", {'Error': str(e)[:500]})
+
+  ScriptUpload:
+    Type: Custom::ScriptUpload
+    DependsOn:
+      - DataBucket
+      - ScriptUploaderFunction
+    Properties:
+      ServiceToken: !GetAtt ScriptUploaderFunction.Arn
+      Bucket: !Sub 'glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}'
+
+  # ============================================================
   # Glue Database
   # ============================================================
   GlueDatabase:
@@ -296,6 +364,7 @@ Resources:
     DependsOn:
       - MSKBootstrap
       - GlueConnection
+      - ScriptUpload
     Properties:
       Name: !Sub 'glue6-rtm-variant-create-topics-${AWS::Region}'
       Role: !GetAtt GlueJobRole.Arn
@@ -322,6 +391,7 @@ Resources:
     DependsOn:
       - MSKBootstrap
       - GlueConnection
+      - ScriptUpload
     Properties:
       Name: !Sub 'glue6-rtm-variant-producer-${AWS::Region}'
       Role: !GetAtt GlueJobRole.Arn
@@ -348,6 +418,7 @@ Resources:
     DependsOn:
       - MSKBootstrap
       - GlueConnection
+      - ScriptUpload
     Properties:
       Name: !Sub 'glue6-rtm-variant-rtm-alerts-${AWS::Region}'
       Role: !GetAtt GlueJobRole.Arn
@@ -377,6 +448,7 @@ Resources:
       - MSKBootstrap
       - GlueConnection
       - GlueDatabase
+      - ScriptUpload
     Properties:
       Name: !Sub 'glue6-rtm-variant-nrt-ingestion-${AWS::Region}'
       Role: !GetAtt GlueJobRole.Arn
@@ -412,6 +484,7 @@ Resources:
     Type: AWS::Glue::Job
     DependsOn:
       - GlueDatabase
+      - ScriptUpload
     Properties:
       Name: !Sub 'glue6-rtm-variant-batch-var-${AWS::Region}'
       Role: !GetAtt GlueJobRole.Arn
