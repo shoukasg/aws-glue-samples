@@ -207,6 +207,7 @@ Resources:
                 Action:
                   - kafka:GetBootstrapBrokers
                   - kafka:DescribeCluster
+                  - ec2:DescribeSubnets
                 Resource: '*'
               - Effect: Allow
                 Action:
@@ -242,11 +243,21 @@ Resources:
                   if event['RequestType'] == 'Delete':
                       send_cfn(event, context, "SUCCESS")
                       return
-                  cluster_arn = event['ResourceProperties']['ClusterArn']
-                  client = boto3.client('kafka')
-                  resp = client.get_bootstrap_brokers(ClusterArn=cluster_arn)
-                  brokers = resp.get('BootstrapBrokerStringSaslIam', '')
-                  send_cfn(event, context, "SUCCESS", {'BootstrapServers': brokers})
+                  action = event['ResourceProperties'].get('Action', 'GetBootstrapBrokers')
+                  if action == 'GetBootstrapBrokers':
+                      cluster_arn = event['ResourceProperties']['ClusterArn']
+                      client = boto3.client('kafka')
+                      resp = client.get_bootstrap_brokers(ClusterArn=cluster_arn)
+                      brokers = resp.get('BootstrapBrokerStringSaslIam', '')
+                      send_cfn(event, context, "SUCCESS", {'BootstrapServers': brokers})
+                  elif action == 'GetSubnetAZ':
+                      subnet_id = event['ResourceProperties']['SubnetId']
+                      ec2 = boto3.client('ec2')
+                      resp = ec2.describe_subnets(SubnetIds=[subnet_id])
+                      az = resp['Subnets'][0]['AvailabilityZone']
+                      send_cfn(event, context, "SUCCESS", {'AvailabilityZone': az})
+                  else:
+                      send_cfn(event, context, "FAILED", {'Error': f'Unknown action: {action}'})
               except Exception as e:
                   send_cfn(event, context, "FAILED", {'Error': str(e)})
 
@@ -258,7 +269,20 @@ Resources:
     DependsOn: MSKCluster
     Properties:
       ServiceToken: !GetAtt HelperFunction.Arn
+      Action: GetBootstrapBrokers
       ClusterArn: !Ref MSKCluster
+
+  # ============================================================
+  # Custom Resource — Get AZ for first subnet
+  # ============================================================
+  SubnetAZ:
+    Type: Custom::SubnetAZ
+    Properties:
+      ServiceToken: !GetAtt HelperFunction.Arn
+      Action: GetSubnetAZ
+      SubnetId: !Select
+        - 0
+        - !Ref SubnetIds
 
   # ============================================================
   # Script Uploader — downloads scripts from GitHub into DataBucket
@@ -351,10 +375,7 @@ Resources:
             - !Ref SubnetIds
           SecurityGroupIdList:
             - !Ref SecurityGroupId
-          AvailabilityZone:
-            Fn::Select:
-              - 0
-              - Fn::GetAZs: !Ref AWS::Region
+          AvailabilityZone: !GetAtt SubnetAZ.AvailabilityZone
 
   # ============================================================
   # Glue Job: Topic Creator (helper — runs once)
