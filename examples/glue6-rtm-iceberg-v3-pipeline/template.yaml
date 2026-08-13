@@ -224,6 +224,8 @@ Resources:
                 Action:
                   - kafka:GetBootstrapBrokers
                   - kafka:DescribeCluster
+                  - kafka:CreateTopic
+                  - kafka:DeleteTopic
                   - ec2:DescribeSubnets
                 Resource: '*'
               - Effect: Allow
@@ -273,6 +275,23 @@ Resources:
                       resp = ec2.describe_subnets(SubnetIds=[subnet_id])
                       az = resp['Subnets'][0]['AvailabilityZone']
                       send_cfn(event, context, "SUCCESS", {'AvailabilityZone': az})
+                  elif action == 'CreateTopics':
+                      cluster_arn = event['ResourceProperties']['ClusterArn']
+                      topics = event['ResourceProperties']['Topics']
+                      client = boto3.client('kafka')
+                      created = []
+                      for topic in topics:
+                          try:
+                              client.create_topic(
+                                  ClusterArn=cluster_arn,
+                                  TopicName=topic['Name'],
+                                  NumberOfPartitions=int(topic.get('Partitions', 2)),
+                                  ReplicationFactor=int(topic.get('ReplicationFactor', 2))
+                              )
+                              created.append(topic['Name'])
+                          except client.exceptions.ConflictException:
+                              created.append(f"{topic['Name']} (exists)")
+                      send_cfn(event, context, "SUCCESS", {'Topics': ', '.join(created)})
                   else:
                       send_cfn(event, context, "FAILED", {'Error': f'Unknown action: {action}'})
               except Exception as e:
@@ -300,6 +319,24 @@ Resources:
       SubnetId: !Select
         - 0
         - !Ref SubnetIds
+
+  # ============================================================
+  # Custom Resource — Create Kafka Topics
+  # ============================================================
+  MSKTopics:
+    Type: Custom::MSKTopics
+    DependsOn: MSKCluster
+    Properties:
+      ServiceToken: !GetAtt HelperFunction.Arn
+      Action: CreateTopics
+      ClusterArn: !Ref MSKCluster
+      Topics:
+        - Name: trade-risk-vectors
+          Partitions: 2
+          ReplicationFactor: 2
+        - Name: trade-alerts
+          Partitions: 2
+          ReplicationFactor: 2
 
   # ============================================================
   # Script Uploader — downloads scripts from GitHub into DataBucket
@@ -397,30 +434,6 @@ Resources:
   # ============================================================
   # Glue Job: Topic Creator (helper — runs once)
   # ============================================================
-  TopicCreatorJob:
-    Type: AWS::Glue::Job
-    DependsOn:
-      - MSKBootstrap
-      - GlueConnection
-      - ScriptUpload
-    Properties:
-      Name: !Sub 'create-topics-${AWS::AccountId}-glue6b1'
-      Role: !GetAtt GlueJobRole.Arn
-      GlueVersion: '6.0'
-      Command:
-        Name: glueetl
-        ScriptLocation: !Sub 's3://${DataBucket}/scripts/create_topics.py'
-        PythonVersion: '3'
-      DefaultArguments:
-        '--BOOTSTRAP_SERVERS': !GetAtt MSKBootstrap.BootstrapServers
-        '--datalake-formats': iceberg
-        '--enable-glue-datacatalog': 'true'
-      Connections:
-        Connections:
-          - !Sub 'connection-${AWS::AccountId}-glue6b1'
-      WorkerType: G.1X
-      NumberOfWorkers: 2
-
   # ============================================================
   # Glue Job: Trade Producer (generates trade events → MSK)
   # ============================================================
@@ -566,10 +579,6 @@ Outputs:
     Description: IAM role used by all Glue jobs
     Value: !GetAtt GlueJobRole.Arn
 
-  TopicCreatorJobName:
-    Description: Run this FIRST to create Kafka topics
-    Value: !Sub 'create-topics-${AWS::AccountId}-glue6b1'
-
   ProducerJobName:
     Description: Trade event producer (run AFTER topics + consumers are started)
     Value: !Sub 'producer-${AWS::AccountId}-glue6b1'
@@ -588,4 +597,4 @@ Outputs:
 
   RunOrder:
     Description: Execution order for the pipeline
-    Value: '1) create-topics → 2) rtm-alerts + nrt-ingestion (parallel) → 3) producer → 4) batch-var (after producer finishes)'
+    Value: '1) rtm-alerts + nrt-ingestion (parallel) → 2) producer → 3) batch-var (after producer finishes)'
