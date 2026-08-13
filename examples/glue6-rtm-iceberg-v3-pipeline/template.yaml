@@ -225,6 +225,8 @@ Resources:
                   - kafka:DescribeCluster
                   - kafka:CreateTopic
                   - kafka:DeleteTopic
+                  - kafka-cluster:Connect
+                  - kafka-cluster:CreateTopic
                   - ec2:DescribeSubnets
                 Resource: '*'
               - Effect: Allow
