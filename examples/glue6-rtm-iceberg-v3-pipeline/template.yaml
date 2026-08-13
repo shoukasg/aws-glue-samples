@@ -53,7 +53,7 @@ Resources:
   GlueJobRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'glue6-rtm-variant-role-${AWS::Region}'
+      RoleName: !Sub 'GlueRole-${AWS::AccountId}-glue6b1'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -114,7 +114,7 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: iam:PassRole
-                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/glue6-rtm-variant-role-${AWS::Region}'
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/GlueRole-${AWS::AccountId}-glue6b1'
         - PolicyName: CloudWatchLogs
           PolicyDocument:
             Version: '2012-10-17'
@@ -331,7 +331,7 @@ Resources:
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
-        Name: !Sub 'risk_analytics_${AWS::AccountId}'
+        Name: !Sub 'risk_analytics_${AWS::AccountId}_glue6b1'
         Description: 'Glue 6.0 Real-Time Market Risk Pipeline — Iceberg v3 tables'
         LocationUri: !Sub 's3://glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}/warehouse/'
 
@@ -343,7 +343,7 @@ Resources:
     Properties:
       CatalogId: !Ref AWS::AccountId
       ConnectionInput:
-        Name: !Sub 'glue6-rtm-variant-connection-${AWS::Region}'
+        Name: !Sub 'connection-${AWS::AccountId}-glue6b1'
         ConnectionType: NETWORK
         PhysicalConnectionRequirements:
           SubnetId: !Select
@@ -366,7 +366,7 @@ Resources:
       - GlueConnection
       - ScriptUpload
     Properties:
-      Name: !Sub 'glue6-rtm-variant-create-topics-${AWS::Region}'
+      Name: !Sub 'create-topics-${AWS::AccountId}-glue6b1'
       Role: !GetAtt GlueJobRole.Arn
       GlueVersion: '6.0'
       Command:
@@ -379,7 +379,7 @@ Resources:
         '--enable-glue-datacatalog': 'true'
       Connections:
         Connections:
-          - !Sub 'glue6-rtm-variant-connection-${AWS::Region}'
+          - !Sub 'connection-${AWS::AccountId}-glue6b1'
       WorkerType: G.1X
       NumberOfWorkers: 2
 
@@ -393,7 +393,7 @@ Resources:
       - GlueConnection
       - ScriptUpload
     Properties:
-      Name: !Sub 'glue6-rtm-variant-producer-${AWS::Region}'
+      Name: !Sub 'producer-${AWS::AccountId}-glue6b1'
       Role: !GetAtt GlueJobRole.Arn
       GlueVersion: '6.0'
       Command:
@@ -406,7 +406,7 @@ Resources:
         '--enable-glue-datacatalog': 'true'
       Connections:
         Connections:
-          - !Sub 'glue6-rtm-variant-connection-${AWS::Region}'
+          - !Sub 'connection-${AWS::AccountId}-glue6b1'
       WorkerType: G.1X
       NumberOfWorkers: 2
 
@@ -420,7 +420,7 @@ Resources:
       - GlueConnection
       - ScriptUpload
     Properties:
-      Name: !Sub 'glue6-rtm-variant-rtm-alerts-${AWS::Region}'
+      Name: !Sub 'rtm-alerts-${AWS::AccountId}-glue6b1'
       Role: !GetAtt GlueJobRole.Arn
       GlueVersion: '6.0'
       Command:
@@ -435,7 +435,7 @@ Resources:
         '--enable-continuous-cloudwatch-log': 'true'
       Connections:
         Connections:
-          - !Sub 'glue6-rtm-variant-connection-${AWS::Region}'
+          - !Sub 'connection-${AWS::AccountId}-glue6b1'
       WorkerType: G.1X
       NumberOfWorkers: 2
 
@@ -450,7 +450,7 @@ Resources:
       - GlueDatabase
       - ScriptUpload
     Properties:
-      Name: !Sub 'glue6-rtm-variant-nrt-ingestion-${AWS::Region}'
+      Name: !Sub 'nrt-ingestion-${AWS::AccountId}-glue6b1'
       Role: !GetAtt GlueJobRole.Arn
       GlueVersion: '6.0'
       Command:
@@ -459,7 +459,7 @@ Resources:
         PythonVersion: '3'
       DefaultArguments:
         '--BOOTSTRAP_SERVERS': !GetAtt MSKBootstrap.BootstrapServers
-        '--DATABASE_NAME': !Sub 'risk_analytics_${AWS::AccountId}'
+        '--DATABASE_NAME': !Sub 'risk_analytics_${AWS::AccountId}_glue6b1'
         '--CHECKPOINT_PATH': !Sub 's3://glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}/checkpoints'
         '--datalake-formats': iceberg
         '--enable-glue-datacatalog': 'true'
@@ -473,7 +473,7 @@ Resources:
           --conf spark.sql.catalog.glue_catalog.io-impl=org.apache.iceberg.aws.s3.S3FileIO
       Connections:
         Connections:
-          - !Sub 'glue6-rtm-variant-connection-${AWS::Region}'
+          - !Sub 'connection-${AWS::AccountId}-glue6b1'
       WorkerType: G.1X
       NumberOfWorkers: 2
 
@@ -486,7 +486,7 @@ Resources:
       - GlueDatabase
       - ScriptUpload
     Properties:
-      Name: !Sub 'glue6-rtm-variant-batch-var-${AWS::Region}'
+      Name: !Sub 'batch-var-${AWS::AccountId}-glue6b1'
       Role: !GetAtt GlueJobRole.Arn
       GlueVersion: '6.0'
       Command:
@@ -494,7 +494,7 @@ Resources:
         ScriptLocation: !Sub 's3://${DataBucket}/scripts/batch_var.py'
         PythonVersion: '3'
       DefaultArguments:
-        '--DATABASE_NAME': !Sub 'risk_analytics_${AWS::AccountId}'
+        '--DATABASE_NAME': !Sub 'risk_analytics_${AWS::AccountId}_glue6b1'
         '--datalake-formats': iceberg
         '--enable-glue-datacatalog': 'true'
         '--enable-metrics': 'true'
@@ -524,7 +524,7 @@ Outputs:
 
   GlueDatabaseName:
     Description: Glue Data Catalog database for Iceberg v3 tables
-    Value: !Sub 'risk_analytics_${AWS::AccountId}'
+    Value: !Sub 'risk_analytics_${AWS::AccountId}_glue6b1'
 
   GlueRoleArn:
     Description: IAM role used by all Glue jobs
@@ -532,23 +532,23 @@ Outputs:
 
   TopicCreatorJobName:
     Description: Run this FIRST to create Kafka topics
-    Value: !Sub 'glue6-rtm-variant-create-topics-${AWS::Region}'
+    Value: !Sub 'create-topics-${AWS::AccountId}-glue6b1'
 
   ProducerJobName:
     Description: Trade event producer (run AFTER topics + consumers are started)
-    Value: !Sub 'glue6-rtm-variant-producer-${AWS::Region}'
+    Value: !Sub 'producer-${AWS::AccountId}-glue6b1'
 
   RTMAlertJobName:
     Description: Real-Time Mode alerts job (Scala, Kafka→Kafka)
-    Value: !Sub 'glue6-rtm-variant-rtm-alerts-${AWS::Region}'
+    Value: !Sub 'rtm-alerts-${AWS::AccountId}-glue6b1'
 
   NRTIngestionJobName:
     Description: Near-real-time ingestion job (PySpark, Kafka→Iceberg v3)
-    Value: !Sub 'glue6-rtm-variant-nrt-ingestion-${AWS::Region}'
+    Value: !Sub 'nrt-ingestion-${AWS::AccountId}-glue6b1'
 
   BatchVaRJobName:
     Description: Batch VaR computation (PySpark, Arrow UDF, Iceberg→Iceberg)
-    Value: !Sub 'glue6-rtm-variant-batch-var-${AWS::Region}'
+    Value: !Sub 'batch-var-${AWS::AccountId}-glue6b1'
 
   RunOrder:
     Description: Execution order for the pipeline
