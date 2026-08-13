@@ -33,7 +33,6 @@ spark.sql(f"""
         'format-version' = '3',
         'write.delete.mode' = 'merge-on-read'
     )
-    LOCATION 's3://{BUCKET}/warehouse/vehicle_telemetry'
     PARTITIONED BY (days(event_time), vehicle_type)
 """)
 print("✅ Iceberg v3 table created with GEOMETRY, TIMESTAMP_NTZ(9), VARIANT, DEFAULT values")
