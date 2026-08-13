@@ -182,6 +182,23 @@ Resources:
         - !Ref RouteTableId
 
   # ============================================================
+  # VPC Endpoint — Glue Interface (Glue jobs need Catalog access)
+  # ============================================================
+  GlueVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.glue'
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Select
+          - 0
+          - !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref SecurityGroupId
+      PrivateDnsEnabled: true
+
+  # ============================================================
   # Helper Lambda — retrieves MSK bootstrap + route table
   # (Single helper for custom resources, not part of pipeline)
   # ============================================================
