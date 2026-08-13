@@ -34,7 +34,6 @@ Resources:
   # ============================================================
   DataBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
     Properties:
       BucketName: !Sub 'glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}'
       PublicAccessBlockConfiguration:
@@ -232,7 +231,10 @@ Resources:
                 Action:
                   - s3:PutObject
                   - s3:DeleteObject
-                Resource: !Sub 'arn:aws:s3:::glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}/scripts/*'
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}'
+                  - !Sub 'arn:aws:s3:::glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}/*'
 
   HelperFunction:
     Type: AWS::Lambda::Function
@@ -380,9 +382,13 @@ Resources:
               s3 = boto3.client('s3')
               try:
                   if event['RequestType'] == 'Delete':
-                      for script in SCRIPTS:
-                          s3.delete_object(Bucket=bucket, Key=f"scripts/{script}")
-                      send_cfn(event, context, "SUCCESS", {'Message': 'Scripts cleaned up'})
+                      # Empty the entire bucket so CFN can delete it
+                      paginator = s3.get_paginator('list_objects_v2')
+                      for page in paginator.paginate(Bucket=bucket):
+                          objects = [{'Key': obj['Key']} for obj in page.get('Contents', [])]
+                          if objects:
+                              s3.delete_objects(Bucket=bucket, Delete={'Objects': objects})
+                      send_cfn(event, context, "SUCCESS", {'Message': 'Bucket emptied'})
                       return
                   for script in SCRIPTS:
                       url = f"{GITHUB_BASE}/{script}"
