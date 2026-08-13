@@ -469,8 +469,6 @@ Resources:
         '--class': RTMAlerts
         '--BOOTSTRAP_SERVERS': !GetAtt MSKBootstrap.BootstrapServers
         '--CHECKPOINT_PATH': !Sub 's3://glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}/checkpoints'
-        '--enable-metrics': 'true'
-        '--enable-continuous-cloudwatch-log': 'true'
       Connections:
         Connections:
           - !Sub 'connection-${AWS::AccountId}-glue6b1'
