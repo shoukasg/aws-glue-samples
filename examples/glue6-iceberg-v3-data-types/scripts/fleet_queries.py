@@ -6,11 +6,17 @@ args = getResolvedOptions(sys.argv, ['BUCKET', 'DATABASE'])
 BUCKET = args['BUCKET']
 DATABASE = args['DATABASE']
 
-spark = SparkSession.builder.getOrCreate()
+spark = SparkSession.builder \
+    .config("spark.sql.catalog.glue_catalog", "org.apache.iceberg.spark.SparkCatalog") \
+    .config("spark.sql.catalog.glue_catalog.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog") \
+    .config("spark.sql.catalog.glue_catalog.warehouse", f"s3://{BUCKET}/warehouse/") \
+    .config("spark.sql.catalog.glue_catalog.io-impl", "org.apache.iceberg.aws.s3.S3FileIO") \
+    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
+    .getOrCreate()
 print(f"Spark version: {spark.version}")
 print(f"Database: {DATABASE}")
 
-TABLE = f"{DATABASE}.vehicle_telemetry"
+TABLE = f"glue_catalog.{DATABASE}.vehicle_telemetry"
 
 # Geofence polygon: POLYGON((0 0, 5 0, 5 2, 0 2, 0 0)) encoded as WKB
 POLY = "01030000000100000005000000000000000000000000000000000000000000000000001440000000000000000000000000000014400000000000000040000000000000000000000000000000400000000000000000000000000000000000000000"

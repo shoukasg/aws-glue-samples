@@ -196,7 +196,7 @@ Resources:
       DefaultArguments:
         '--conf': 'spark.sql.geospatial.enabled=true'
         '--datalake-formats': iceberg
-        '--enable-glue-datacatalog': 'true'
+
         '--BUCKET': !Sub 'glue6-iceberg-v3-types-${AWS::AccountId}-${AWS::Region}'
         '--DATABASE': !Sub 'fleet_monitoring_${AWS::AccountId}'
       WorkerType: G.1X
@@ -219,7 +219,7 @@ Resources:
       DefaultArguments:
         '--conf': 'spark.sql.geospatial.enabled=true'
         '--datalake-formats': iceberg
-        '--enable-glue-datacatalog': 'true'
+
         '--BUCKET': !Sub 'glue6-iceberg-v3-types-${AWS::AccountId}-${AWS::Region}'
         '--DATABASE': !Sub 'fleet_monitoring_${AWS::AccountId}'
       WorkerType: G.1X

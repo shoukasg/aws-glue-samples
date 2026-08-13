@@ -6,14 +6,21 @@ args = getResolvedOptions(sys.argv, ['BUCKET', 'DATABASE'])
 BUCKET = args['BUCKET']
 DATABASE = args['DATABASE']
 
-spark = SparkSession.builder.getOrCreate()
-print(f"Spark version: {spark.version}")
+spark = SparkSession.builder \
+    .config("spark.sql.catalog.glue_catalog", "org.apache.iceberg.spark.SparkCatalog") \
+    .config("spark.sql.catalog.glue_catalog.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog") \
+    .config("spark.sql.catalog.glue_catalog.warehouse", f"s3://{BUCKET}/warehouse/") \
+    .config("spark.sql.catalog.glue_catalog.io-impl", "org.apache.iceberg.aws.s3.S3FileIO") \
+    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
+    .getOrCreate()
+
+print(f"Spark: {spark.version}")
 print(f"Bucket: {BUCKET}")
 print(f"Database: {DATABASE}")
 
-TABLE = f"{DATABASE}.vehicle_telemetry"
+TABLE = f"glue_catalog.{DATABASE}.vehicle_telemetry"
 
-spark.sql(f"CREATE DATABASE IF NOT EXISTS {DATABASE}")
+spark.sql(f"CREATE NAMESPACE IF NOT EXISTS glue_catalog.{DATABASE}")
 spark.sql(f"DROP TABLE IF EXISTS {TABLE}")
 
 # Create table with all four new Iceberg v3 column types
@@ -35,10 +42,9 @@ spark.sql(f"""
     )
     PARTITIONED BY (days(event_time), vehicle_type)
 """)
-print("✅ Iceberg v3 table created with GEOMETRY, TIMESTAMP_NTZ(9), VARIANT, DEFAULT values")
+print("✅ Table created with GEOMETRY + TIMESTAMP_NTZ(9) + VARIANT + DEFAULT values")
 
-# Insert van telemetry
-# POINT(-0.1278, 51.5074) = Central London (encoded as WKB)
+# Insert van telemetry — POINT(-0.1278, 51.5074) = Central London
 spark.sql(f"""
     INSERT INTO {TABLE} VALUES (
         'EVT-001', 'VAN-042', 'VAN',
@@ -50,7 +56,7 @@ spark.sql(f"""
     )
 """)
 
-# Insert delivery robot telemetry -- POINT(4, 1)
+# Insert delivery robot telemetry — POINT(4, 1)
 spark.sql(f"""
     INSERT INTO {TABLE} VALUES (
         'EVT-002', 'ROB-117', 'ROBOT',
@@ -62,7 +68,7 @@ spark.sql(f"""
     )
 """)
 
-# Insert bike telemetry -- POINT(3, 1)
+# Insert bike telemetry — POINT(3, 1)
 spark.sql(f"""
     INSERT INTO {TABLE} VALUES (
         'EVT-003', 'BKE-203', 'BIKE',
@@ -74,7 +80,7 @@ spark.sql(f"""
     )
 """)
 
-# Insert with defaults omitted -- test DEFAULT values -- POINT(1, 1)
+# Insert with defaults omitted — test DEFAULT values — POINT(1, 1)
 spark.sql(f"""
     INSERT INTO {TABLE}
         (event_id, vehicle_id, event_time, location, service_area, sensor_payload)
@@ -87,7 +93,6 @@ spark.sql(f"""
     )
 """)
 
-print("✅ Inserted 4 telemetry events (van, delivery robot, bike, unknown with defaults)")
-count = spark.sql(f"SELECT count(*) FROM {TABLE}").collect()[0][0]
-print(f"✅ Table contains {count} rows")
+count = spark.sql(f"SELECT COUNT(*) AS cnt FROM {TABLE}").collect()[0]['cnt']
+print(f"✅ Inserted {count} telemetry events (van, delivery robot, bike, unknown)")
 spark.stop()
