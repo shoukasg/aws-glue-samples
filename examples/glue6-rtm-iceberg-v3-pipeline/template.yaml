@@ -462,7 +462,7 @@ Resources:
       Role: !GetAtt GlueJobRole.Arn
       GlueVersion: '6.0'
       Command:
-        Name: glueetl
+        Name: gluestreaming
         ScriptLocation: !Sub 's3://${DataBucket}/scripts/producer.py'
         PythonVersion: '3'
       DefaultArguments:
