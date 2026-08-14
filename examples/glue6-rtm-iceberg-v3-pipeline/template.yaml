@@ -18,7 +18,7 @@ Parameters:
 
   SecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
-    Description: Create a dedicated security group that allows inbound TCP 9098 from itself only (self-referencing rule). Do not use the default VPC security group.
+    Description: Create a dedicated security group that allows inbound TCP 9098 from itself only (self-referencing rule). Do not use the default VPC security group as it allows broad inbound access.
 
   RouteTableId:
     Type: String
