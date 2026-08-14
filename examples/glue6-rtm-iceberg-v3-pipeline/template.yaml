@@ -494,6 +494,7 @@ Resources:
       DefaultArguments:
         '--job-language': scala
         '--class': RTMAlerts
+        '--enable-real-time-mode': 'true'
         '--BOOTSTRAP_SERVERS': !GetAtt MSKBootstrap.BootstrapServers
         '--CHECKPOINT_PATH': !Sub 's3://glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}/checkpoints'
       Connections:
