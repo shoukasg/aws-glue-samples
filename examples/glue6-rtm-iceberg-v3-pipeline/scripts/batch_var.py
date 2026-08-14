@@ -142,6 +142,8 @@ print("✅ Batch VaR complete — summary written to daily_risk_summary")
 print("\n=== Deletion Vectors (trade amendment + cancellation) ===")
 
 # Get a trade to amend and one to cancel
+# Note: trade_id is sourced from our own Iceberg table (trusted producer).
+# In production, parameterize inputs from untrusted sources.
 first_trade = spark.sql(f"SELECT trade_id FROM {TRADE_TABLE} ORDER BY trade_id LIMIT 1").collect()[0][0]
 last_trade = spark.sql(f"SELECT trade_id FROM {TRADE_TABLE} ORDER BY trade_id DESC LIMIT 1").collect()[0][0]
 print(f"  Amending: {first_trade}")

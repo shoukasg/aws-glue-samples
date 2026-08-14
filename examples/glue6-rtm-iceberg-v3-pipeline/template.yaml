@@ -18,7 +18,7 @@ Parameters:
 
   SecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
-    Description: Security group allowing TCP 9098 (MSK IAM) within itself. Use your VPC default SG or create one.
+    Description: Create a dedicated security group that allows inbound TCP 9098 from itself only (self-referencing rule). Do not use the default VPC security group.
 
   RouteTableId:
     Type: String
@@ -90,6 +90,8 @@ Resources:
                   - kafka-cluster:ReadData
                   - kafka-cluster:AlterGroup
                   - kafka-cluster:DescribeGroup
+                # kafka-cluster actions require Resource: '*' because the cluster ARN
+                # is not known at role creation time (circular dependency with MSKCluster resource)
                 Resource: '*'
         - PolicyName: GlueCatalog
           PolicyDocument:
@@ -106,7 +108,10 @@ Resources:
                   - glue:UpdateTable
                   - glue:DeleteTable
                   - glue:GetPartitions
-                Resource: '*'
+                Resource:
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/risk_analytics_*'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/risk_analytics_*/*'
         - PolicyName: PassRole
           PolicyDocument:
             Version: '2012-10-17'
@@ -123,7 +128,7 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: 'arn:aws:logs:*:*:*'
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
         - PolicyName: EC2NetworkInterface
           PolicyDocument:
             Version: '2012-10-17'
@@ -138,6 +143,7 @@ Resources:
                   - ec2:DescribeVpcs
                   - ec2:DescribeVpcEndpoints
                   - ec2:DescribeRouteTables
+                # EC2 ENI actions require Resource: '*' (ENI ARNs are not predictable)
                 Resource: '*'
 
   # ============================================================
