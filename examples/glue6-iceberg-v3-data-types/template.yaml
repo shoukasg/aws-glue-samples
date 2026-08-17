@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  Iceberg v3 Data Types Demo — AWS Glue 6.0.
+  Iceberg v3 Data Types Demo - AWS Glue 6.0.
   Demonstrates GEOMETRY, GEOGRAPHY, TIMESTAMP_NTZ(9), VARIANT, and DEFAULT values
   in a single Iceberg v3 table using a fleet telemetry use case.
 
@@ -176,7 +176,7 @@ Resources:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
         Name: !Sub 'fleet_monitoring_${AWS::AccountId}'
-        Description: 'Iceberg v3 Data Types Demo — Fleet Telemetry'
+        Description: 'Iceberg v3 Data Types Demo - Fleet Telemetry'
         LocationUri: !Sub 's3://glue6-iceberg-v3-types-${AWS::AccountId}-${AWS::Region}/warehouse/'
 
   # ============================================================

@@ -1,8 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  Real-Time Market Risk Pipeline — AWS Glue 6.0 + Apache Iceberg v3 + Spark RTM.
+  Real-Time Market Risk Pipeline - AWS Glue 6.0 + Apache Iceberg v3 + Spark RTM.
   Deploys MSK Serverless, VPC networking, Glue jobs (producer, RTM alerts, NRT ingestion, batch VaR),
-  and all supporting resources. No Lambda functions — all processing is Glue-based.
+  and all supporting resources. No Lambda functions - all processing is Glue-based.
 
 # ==============================================================================
 # PARAMETERS
@@ -30,7 +30,7 @@ Parameters:
 Resources:
 
   # ============================================================
-  # S3 Bucket — Iceberg warehouse, scripts, checkpoints
+  # S3 Bucket - Iceberg warehouse, scripts, checkpoints
   # ============================================================
   DataBucket:
     Type: AWS::S3::Bucket
@@ -47,7 +47,7 @@ Resources:
               SSEAlgorithm: AES256
 
   # ============================================================
-  # IAM Role — shared by all Glue jobs
+  # IAM Role - shared by all Glue jobs
   # ============================================================
   GlueJobRole:
     Type: AWS::IAM::Role
@@ -175,7 +175,7 @@ Resources:
           InCluster: true
 
   # ============================================================
-  # VPC Endpoint — S3 Gateway (Glue jobs in VPC need this)
+  # VPC Endpoint - S3 Gateway (Glue jobs in VPC need this)
   # ============================================================
   S3VpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -187,7 +187,7 @@ Resources:
         - !Ref RouteTableId
 
   # ============================================================
-  # VPC Endpoint — Glue Interface (Glue jobs need Catalog access)
+  # VPC Endpoint - Glue Interface (Glue jobs need Catalog access)
   # ============================================================
   GlueVpcEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -204,7 +204,7 @@ Resources:
       PrivateDnsEnabled: true
 
   # ============================================================
-  # Helper Lambda — retrieves MSK bootstrap + route table
+  # Helper Lambda - retrieves MSK bootstrap + route table
   # (Single helper for custom resources, not part of pipeline)
   # ============================================================
   HelperRole:
@@ -308,7 +308,7 @@ Resources:
                   send_cfn(event, context, "FAILED", {'Error': str(e)})
 
   # ============================================================
-  # Custom Resource — Get MSK Bootstrap Brokers (IAM endpoint)
+  # Custom Resource - Get MSK Bootstrap Brokers (IAM endpoint)
   # ============================================================
   MSKBootstrap:
     Type: Custom::MSKBootstrap
@@ -319,7 +319,7 @@ Resources:
       ClusterArn: !Ref MSKCluster
 
   # ============================================================
-  # Custom Resource — Get AZ for first subnet
+  # Custom Resource - Get AZ for first subnet
   # ============================================================
   SubnetAZ:
     Type: Custom::SubnetAZ
@@ -331,7 +331,7 @@ Resources:
         - !Ref SubnetIds
 
   # ============================================================
-  # Custom Resource — Create Kafka Topics
+  # Custom Resource - Create Kafka Topics
   # ============================================================
   MSKTopics:
     Type: Custom::MSKTopics
@@ -349,7 +349,7 @@ Resources:
           ReplicationFactor: 2
 
   # ============================================================
-  # Script Uploader — downloads scripts from GitHub into DataBucket
+  # Script Uploader - downloads scripts from GitHub into DataBucket
   # ============================================================
   ScriptUploaderFunction:
     Type: AWS::Lambda::Function
@@ -424,7 +424,7 @@ Resources:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
         Name: !Sub 'risk_analytics_${AWS::AccountId}_glue6b1'
-        Description: 'Glue 6.0 Real-Time Market Risk Pipeline — Iceberg v3 tables'
+        Description: 'Glue 6.0 Real-Time Market Risk Pipeline - Iceberg v3 tables'
         LocationUri: !Sub 's3://glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}/warehouse/'
 
   # ============================================================
@@ -446,7 +446,7 @@ Resources:
           AvailabilityZone: !GetAtt SubnetAZ.AvailabilityZone
 
   # ============================================================
-  # Glue Job: Topic Creator (helper — runs once)
+  # Glue Job: Topic Creator (helper - runs once)
   # ============================================================
   # ============================================================
   # Glue Job: Trade Producer (generates trade events → MSK)
@@ -476,7 +476,7 @@ Resources:
       NumberOfWorkers: 2
 
   # ============================================================
-  # Glue Job: RTM Alerts (Scala — Real-Time Mode, Kafka→Kafka)
+  # Glue Job: RTM Alerts (Scala - Real-Time Mode, Kafka→Kafka)
   # ============================================================
   RTMAlertJob:
     Type: AWS::Glue::Job
@@ -504,7 +504,7 @@ Resources:
       NumberOfWorkers: 2
 
   # ============================================================
-  # Glue Job: NRT Ingestion (PySpark — Micro-batch, Kafka→Iceberg v3)
+  # Glue Job: NRT Ingestion (PySpark - Micro-batch, Kafka→Iceberg v3)
   # ============================================================
   NRTIngestionJob:
     Type: AWS::Glue::Job
@@ -542,7 +542,7 @@ Resources:
       NumberOfWorkers: 2
 
   # ============================================================
-  # Glue Job: Batch VaR (PySpark — Arrow UDF, Iceberg→Iceberg)
+  # Glue Job: Batch VaR (PySpark - Arrow UDF, Iceberg→Iceberg)
   # ============================================================
   BatchVaRJob:
     Type: AWS::Glue::Job
