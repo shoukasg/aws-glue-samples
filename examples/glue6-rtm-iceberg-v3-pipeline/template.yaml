@@ -247,7 +247,13 @@ Resources:
                   - kafka:GetBootstrapBrokers
                   - kafka:DescribeCluster
                   - kafka:CreateTopic
+                  - kafka-cluster:Connect
                 Resource: !Sub 'arn:${AWS::Partition}:kafka:${AWS::Region}:${AWS::AccountId}:cluster/glue6-rtm-variant-${AWS::AccountId}/*'
+              - Effect: Allow
+                Action:
+                  - kafka-cluster:CreateTopic
+                  - kafka-cluster:DescribeTopic
+                Resource: !Sub 'arn:${AWS::Partition}:kafka:${AWS::Region}:${AWS::AccountId}:topic/glue6-rtm-variant-${AWS::AccountId}/*/*'
               - Effect: Allow
                 Action:
                   - ec2:DescribeSubnets
