@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   Iceberg v3 Data Types Demo - AWS Glue 6.0.
@@ -68,7 +71,10 @@ Resources:
                   - glue:UpdateTable
                   - glue:DeleteTable
                   - glue:GetPartitions
-                Resource: '*'
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+                  - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:database/fleet_monitoring_${AWS::AccountId}'
+                  - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/fleet_monitoring_${AWS::AccountId}/*'
         - PolicyName: CloudWatchLogs
           PolicyDocument:
             Version: '2012-10-17'
@@ -78,7 +84,7 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: 'arn:aws:logs:*:*:*'
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
 
   # ============================================================
   # Script Uploader Lambda
@@ -125,7 +131,7 @@ Resources:
           import boto3, json
           from urllib.request import urlopen, Request
 
-          GITHUB_BASE = "https://raw.githubusercontent.com/shoukasg/aws-glue-samples/master/examples/glue6-iceberg-v3-data-types/scripts"
+          GITHUB_BASE = "https://raw.githubusercontent.com/aws-samples/aws-glue-samples/master/examples/glue6-iceberg-v3-data-types/scripts"
           SCRIPTS = ["fleet_telemetry.py", "fleet_queries.py"]
 
           def send_cfn(event, context, status, data={}):

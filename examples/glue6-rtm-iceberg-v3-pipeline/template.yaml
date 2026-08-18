@@ -1,7 +1,10 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   Real-Time Market Risk Pipeline - AWS Glue 6.0 + Apache Iceberg v3 + Spark RTM.
-  Deploys MSK Serverless, VPC networking, Glue jobs (producer, RTM alerts, NRT ingestion, batch VaR),
+  Deploys a provisioned Amazon MSK cluster, VPC networking, Glue jobs (producer, RTM alerts, NRT ingestion, batch VaR),
   and all supporting resources. No Lambda functions - all processing is Glue-based.
 
 # ==============================================================================
@@ -10,7 +13,7 @@ Description: >
 Parameters:
   VpcId:
     Type: AWS::EC2::VPC::Id
-    Description: VPC for MSK Serverless cluster. Must have DNS resolution enabled.
+    Description: VPC for the Amazon MSK cluster. Must have DNS resolution enabled.
 
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
@@ -51,6 +54,11 @@ Resources:
   # ============================================================
   GlueJobRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: ec2 network-interface and ec2 describe actions do not support resource-level permissions and require Resource '*'
     Properties:
       RoleName: !Sub 'GlueRole-${AWS::AccountId}-glue6b1'
       AssumeRolePolicyDocument:
@@ -84,15 +92,19 @@ Resources:
                 Action:
                   - kafka-cluster:Connect
                   - kafka-cluster:DescribeCluster
+                Resource: !Sub 'arn:${AWS::Partition}:kafka:${AWS::Region}:${AWS::AccountId}:cluster/glue6-rtm-variant-${AWS::AccountId}/*'
+              - Effect: Allow
+                Action:
                   - kafka-cluster:DescribeTopic
                   - kafka-cluster:CreateTopic
                   - kafka-cluster:WriteData
                   - kafka-cluster:ReadData
+                Resource: !Sub 'arn:${AWS::Partition}:kafka:${AWS::Region}:${AWS::AccountId}:topic/glue6-rtm-variant-${AWS::AccountId}/*/*'
+              - Effect: Allow
+                Action:
                   - kafka-cluster:AlterGroup
                   - kafka-cluster:DescribeGroup
-                # kafka-cluster actions require Resource: '*' because the cluster ARN
-                # is not known at role creation time (circular dependency with MSKCluster resource)
-                Resource: '*'
+                Resource: !Sub 'arn:${AWS::Partition}:kafka:${AWS::Region}:${AWS::AccountId}:group/glue6-rtm-variant-${AWS::AccountId}/*/*'
         - PolicyName: GlueCatalog
           PolicyDocument:
             Version: '2012-10-17'
@@ -209,6 +221,11 @@ Resources:
   # ============================================================
   HelperRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: ec2:DescribeSubnets does not support resource-level permissions and requires Resource '*'
     Properties:
       RoleName: !Sub 'glue6-rtm-variant-helper-${AWS::Region}'
       AssumeRolePolicyDocument:
@@ -230,10 +247,11 @@ Resources:
                   - kafka:GetBootstrapBrokers
                   - kafka:DescribeCluster
                   - kafka:CreateTopic
-                  - kafka:DeleteTopic
-                  - kafka-cluster:Connect
-                  - kafka-cluster:CreateTopic
+                Resource: !Sub 'arn:${AWS::Partition}:kafka:${AWS::Region}:${AWS::AccountId}:cluster/glue6-rtm-variant-${AWS::AccountId}/*'
+              - Effect: Allow
+                Action:
                   - ec2:DescribeSubnets
+                # DescribeSubnets does not support resource-level permissions
                 Resource: '*'
               - Effect: Allow
                 Action:
@@ -241,8 +259,8 @@ Resources:
                   - s3:DeleteObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub 'arn:aws:s3:::glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}'
-                  - !Sub 'arn:aws:s3:::glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}'
+                  - !Sub 'arn:${AWS::Partition}:s3:::glue6-rtm-variant-${AWS::AccountId}-${AWS::Region}/*'
 
   HelperFunction:
     Type: AWS::Lambda::Function
@@ -366,7 +384,7 @@ Resources:
           import boto3, json
           from urllib.request import urlopen, Request
 
-          GITHUB_BASE = "https://raw.githubusercontent.com/shoukasg/aws-glue-samples/master/examples/glue6-rtm-iceberg-v3-pipeline/scripts"
+          GITHUB_BASE = "https://raw.githubusercontent.com/aws-samples/aws-glue-samples/master/examples/glue6-rtm-iceberg-v3-pipeline/scripts"
           SCRIPTS = [
               "create_topics.py",
               "producer.py",
